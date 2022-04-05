@@ -19,6 +19,7 @@ parser.add_argument('--dropout', type=float, default=0.5, help='Dropout rate for
 parser.add_argument('--protect_size', type=float, default=0.1, help='Number of randomly chosen protected nodes')
 parser.add_argument('--ptb_rate', type=float, default=0.25, help='Perturbation rate (percentage of available edges)')
 
+parser.add_argument('--do_sampling', type=str, default='Y', help='to do sampling or not')
 parser.add_argument('--sample_size', type=int, default=500, help='')
 parser.add_argument('--num_samples', type=int, default=20, help='')
 
@@ -28,6 +29,7 @@ parser.add_argument('--ptb_epochs', type=int, default=30, help='Epochs to pertur
 parser.add_argument('--surrogate_epochs', type=int, default=0, help='Epochs to train surrogate before perturb')
 
 parser.add_argument('--save', type=str, default='N', help='save the outputs to csv')
+parser.add_argument('--save_location', type=str, default="./SelectiveAttack.csv", help='where to save the outputs to csv')
 parser.add_argument('--dataset', type=str, default='cora', help='dataset')
 
 
@@ -123,41 +125,52 @@ t.set_description("Perturbing")
 
 for epoch in t:
 
+
     # Re-initialize adj_grad
     adj_grad = torch.zeros_like(graph.adj).float()
 
     # Get modified adj
     modified_adj = Utils.get_modified_adj(graph.adj, perturbations).float().to(device)
 
-    for sample_epoch in range(args.num_samples):
-        # Get sample indices
-        # sampled = torch.bernoulli(sampling_matrix)
-        idx = samplingMatrix.get_sample()
-        # print(idx)
+    if args.do_sampling == 'Y':
 
-        # Map sample to adj
-        sample = modified_adj[idx[0], idx[1]].clone().detach().requires_grad_(True).to(device)
-        modified_adj[idx[0], idx[1]] = sample
+        for sample_epoch in range(args.num_samples):
+            # Get sample indices
+            # sampled = torch.bernoulli(sampling_matrix)
+            idx = samplingMatrix.get_sample()
+            # print(idx)
 
+            # Map sample to adj
+            sample = modified_adj[idx[0], idx[1]].clone().detach().requires_grad_(True).to(device)
+            modified_adj[idx[0], idx[1]] = sample
+
+            # Get grad
+            predictions = surrogate(graph.features, modified_adj)
+            loss = F.cross_entropy(predictions[g0], graph.labels[g0]) \
+                - F.cross_entropy(predictions[gX], graph.labels[gX])
+
+            grad = torch.autograd.grad(loss, sample)[0]
+
+            # Implement averaging
+            adj_grad[idx[0], idx[1]] += grad
+            count[idx[0], idx[1]] += 1
+
+            # Update the sampling matrix
+            samplingMatrix.updateByGrad(adj_grad, count)
+            samplingMatrix.getRatio()
+
+            # Average the gradient
+            adj_grad = torch.div(adj_grad, count)
+            adj_grad[adj_grad != adj_grad] = 0
+    
+    else:
         # Get grad
+        modified_adj = modified_adj.clone().detach().requires_grad_(True).to(device)
         predictions = surrogate(graph.features, modified_adj)
         loss = F.cross_entropy(predictions[g0], graph.labels[g0]) \
-             - F.cross_entropy(predictions[gX], graph.labels[gX])
+            - F.cross_entropy(predictions[gX], graph.labels[gX])
 
-        grad = torch.autograd.grad(loss, sample)[0]
-
-        # Implement averaging
-        adj_grad[idx[0], idx[1]] += grad
-        count[idx[0], idx[1]] += 1
-
-    # Update the sampling matrix
-    # if epoch % 2 == 0:
-    samplingMatrix.updateByGrad(adj_grad, count)
-    samplingMatrix.getRatio()
-
-    # Average the gradient
-    adj_grad = torch.div(adj_grad, count)
-    adj_grad[adj_grad != adj_grad] = 0
+        adj_grad = torch.autograd.grad(loss, modified_adj)[0]
 
     # Update perturbations
     lr = (num_perturbations) / (epoch + 1)
@@ -328,7 +341,10 @@ if (args.check_universal == "Y"):
 
         t += 1
     
-    Export.saveData("./UniversalProtection.csv", universalResults)
+    sp = args.save_location.split(".")
+    sp = sp[:-1] + ["Universal"] + sp[-1:]
+    sp = ".".join(sp)
+    Export.saveData(sp, universalResults)
 
 
 ################################################
@@ -372,4 +388,4 @@ if (args.save == "Y"):
 
     }
 
-    Export.saveData("./SelectiveAttack.csv", results)
+    Export.saveData(args.save_location, results)

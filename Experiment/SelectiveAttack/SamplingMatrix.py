@@ -3,9 +3,9 @@ import torch
 
 class SamplingMatrix:
     def __init__(self, g0, gX, adj, sample_size=3):
-        self.g0_ratio = 1
-        self.gX_ratio = 1
-        self.g0gX_ratio = 1
+        self.g0_ratio = torch.tensor(1)
+        self.gX_ratio = torch.tensor(1)
+        self.g0gX_ratio = torch.tensor(1)
         self.sample_size = sample_size
 
         self.g0 = g0
