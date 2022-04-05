@@ -1,2 +1,0 @@
-date,seed,dataset,protect_size,reg_epochs,ptb_epochs,ptb_rate,ptb_sample_num,ptb_sample_size,ratio_g0,ratio_gX,ratio_g0gX,base_g0,base_gX,d_g0,d_gX,edges,add_g0,add_gX,add_g0gX,remove_g0,remove_gX,remove_g0gX
-04/04/22,123,cora,0.1,75,15,0.25,20,500,0.2662890553474426,0.23821523785591125,0.4954957365989685,0.7122806906700134,0.7181180715560913,-0.42807015776634216,0.03095334768295288,2621.0,970 (0.1% similar),150 (0.3% similar),1499 (0.1% similar),1 (0.0% similar),0,1 (1.0% similar)

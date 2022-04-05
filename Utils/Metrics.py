@@ -17,11 +17,13 @@ def calc_acc(model, features, adj, labels, idx=False):
     acc = correct / idx.sum()
     return acc.item()
 
-def partial_acc(predictions, labels, g0, g_g0):
+def partial_acc(predictions, labels, g0, g_g0, verbose=True):
     g0_acc = acc(predictions[g0], labels[g0])
     gX_acc = acc(predictions[g_g0], labels[g_g0])
-    print(f"G0: {g0_acc:.2%}")
-    print(f"GX: {gX_acc:.2%}")
+
+    if verbose:
+        print(f"G0: {g0_acc:.2%}")
+        print(f"GX: {gX_acc:.2%}")
 
     return {
         "g0": g0_acc,

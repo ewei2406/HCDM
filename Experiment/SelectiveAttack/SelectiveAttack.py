@@ -30,6 +30,9 @@ parser.add_argument('--surrogate_epochs', type=int, default=0, help='Epochs to t
 parser.add_argument('--save', type=str, default='N', help='save the outputs to csv')
 parser.add_argument('--dataset', type=str, default='cora', help='dataset')
 
+
+parser.add_argument('--check_universal', type=str, default='N', help='check universal protection')
+
 args = parser.parse_args()
 
 ################################################
@@ -253,12 +256,88 @@ diffSummary = Metrics.show_metrics(diff, graph.labels, g0, device)
 print(diffSummary)
 
 ################################################
+# Check universal protection
+################################################
+
+if (args.check_universal == "Y"):
+    import Utils.Export as Export
+    from datetime import datetime
+
+    universalResults = {
+        "date": datetime.today().strftime('%Y-%m-%d-%H:%M:%S'),
+        "seed": args.seed,
+        "dataset": args.dataset,
+        "protect_size": args.protect_size,
+        "reg_epochs": args.reg_epochs,
+        "ptb_epochs": args.ptb_epochs,
+        "ptb_rate": args.ptb_rate,
+        "ptb_sample_num": args.num_samples,
+        "ptb_sample_size": args.sample_size,
+        "base_g0": baseline_acc["g0"],
+        "base_gX": baseline_acc["gX"],
+        "d_g0": dg0,
+        "d_gX": dgX,
+    }
+    t = 0
+    for idx in torch.randint(0, graph.features.shape[1], [5]):
+        taskLabels, taskFeatures = Utils.get_task(idx, graph.features, device)
+
+        tempModelBase = GCN(
+            input_features=taskFeatures.shape[1],
+            output_classes=taskLabels.max().item()+1,
+            hidden_layers=args.hidden_layers,
+            device=device,
+            lr=args.model_lr,
+            dropout=args.dropout,
+            weight_decay=args.weight_decay,
+            name=f"task {idx:.0f}"
+        )
+
+        tempModelBase.fitManual(taskFeatures, graph.adj, taskLabels, graph.idx_train, graph.idx_test, args.reg_epochs)
+
+        pred = tempModelBase(taskFeatures, graph.adj)
+        tempAccBase = Metrics.partial_acc(pred, taskLabels, g0, gX, verbose=False)
+
+        tempModel = GCN(
+            input_features=taskFeatures.shape[1],
+            output_classes=taskLabels.max().item()+1,
+            hidden_layers=args.hidden_layers,
+            device=device,
+            lr=args.model_lr,
+            dropout=args.dropout,
+            weight_decay=args.weight_decay,
+            name=f"task {idx:.0f} locked"
+        )
+
+        tempModel.fitManual(taskFeatures, locked_adj, taskLabels, graph.idx_train, graph.idx_test, args.reg_epochs)
+
+        pred = tempModel(taskFeatures, locked_adj)
+        tempAcc = Metrics.partial_acc(pred, taskLabels, g0, gX, verbose=False)
+
+        d_g0 = tempAcc["g0"] - tempAccBase["g0"]
+        d_gX = tempAcc["gX"] - tempAccBase["gX"]
+
+        print(f"d_g0: {d_g0:.2%}")
+        print(f"d_gX: {d_gX:.2%}")
+
+        universalResults[f"t{t:.0f}_task"] = idx
+        universalResults[f"t{t:.0f}_g0"] = tempAccBase["g0"]
+        universalResults[f"d_t{t:.0f}_g0"] = d_g0
+        universalResults[f"t{t:.0f}_gX"] = tempAccBase["gX"]
+        universalResults[f"d_t{t:.0f}_gX"] = d_gX
+
+        t += 1
+    
+    Export.saveData("./UniversalProtection.csv", universalResults)
+
+
+################################################
 # Save
 ################################################
 
 if (args.save == "Y"):
     import Utils.Export as Export
-    from datetime import date
+    from datetime import datetime
 
     def getDiff(location, changeType):
         num = diffSummary[location][changeType]["total"]
@@ -267,7 +346,7 @@ if (args.save == "Y"):
         return f"{num:.0f} ({pct:.2%} similar)"
 
     results = {
-        "date": date.today().strftime("%m/%d/%y"),
+        "date": datetime.today().strftime('%Y-%m-%d-%H:%M:%S'),
         "seed": args.seed,
         "dataset": args.dataset,
         "protect_size": args.protect_size,

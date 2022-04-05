@@ -150,14 +150,14 @@ def projection(perturbations, n_perturbations):
     return perturbations
 
 
-def get_task(idx, features):
+def get_task(idx, features, device):
 
-    task = features.t()[idx].long()
+    task = features.t()[idx].long().to(device)
 
-    f = features.t()
-    f = torch.cat([f[0:idx], f[idx+1:]]).t()
+    residualFeat = features.t()
+    residualFeat = torch.cat([residualFeat[0:idx], residualFeat[idx+1:]]).t().to(device)
 
-    return task, f
+    return task, residualFeat
 
 
 # DO NOT USE!!!
