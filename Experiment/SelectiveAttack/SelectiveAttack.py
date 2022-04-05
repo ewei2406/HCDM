@@ -1,8 +1,6 @@
-import os, sys
-currentdir = os.path.dirname(os.path.realpath(__file__))
-parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir)
-
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 ################################################
 # Arguments
@@ -19,19 +17,18 @@ parser.add_argument('--hidden_layers', type=int, default=32, help='Number of hid
 parser.add_argument('--dropout', type=float, default=0.5, help='Dropout rate for GCN')
 
 parser.add_argument('--protect_size', type=float, default=0.1, help='Number of randomly chosen protected nodes')
-parser.add_argument('--ptb_rate', type=float, default=0.5, help='Perturbation rate (percentage of available edges)')
+parser.add_argument('--ptb_rate', type=float, default=0.25, help='Perturbation rate (percentage of available edges)')
 
 parser.add_argument('--sample_size', type=int, default=500, help='')
-parser.add_argument('--num_samples', type=int, default=10, help='')
+parser.add_argument('--num_samples', type=int, default=20, help='')
 
 
-parser.add_argument('--reg_epochs', type=int, default=75, help='Epochs to train models')
-parser.add_argument('--ptb_epochs', type=int, default=15, help='Epochs to perturb adj matrix')
+parser.add_argument('--reg_epochs', type=int, default=100, help='Epochs to train models')
+parser.add_argument('--ptb_epochs', type=int, default=30, help='Epochs to perturb adj matrix')
 parser.add_argument('--surrogate_epochs', type=int, default=0, help='Epochs to train surrogate before perturb')
 
-parser.add_argument('--csv', type=str, default='', help='save the outputs to csv')
+parser.add_argument('--save', type=str, default='N', help='save the outputs to csv')
 parser.add_argument('--dataset', type=str, default='cora', help='dataset')
-parser.add_argument('--ntasks', type=int, default=1, help='number of additional tasks')
 
 args = parser.parse_args()
 
@@ -63,7 +60,7 @@ from Utils import GraphData
 
 print(f'==== Dataset: {args.dataset} ====')
 
-graph = GraphData.getGraph("../Datasets", args.dataset, "gcn", args.seed, "cpu")
+graph = GraphData.getGraph("../../Datasets", args.dataset, "gcn", args.seed, device)
 graph.summarize()
 
 ################################################
@@ -72,7 +69,7 @@ graph.summarize()
 
 g0 = torch.rand(graph.features.shape[0]) <= args.protect_size
 # g0 = graph.labels == 5 
-
+g0 = g0.to(device)
 gX = ~g0
 
 print(f"Number of protected nodes: {g0.sum():.0f}")
@@ -100,12 +97,12 @@ surrogate = GCN(
     input_features=graph.features.shape[1],
     output_classes=graph.labels.max().item()+1,
     hidden_layers=args.hidden_layers,
-    device="cpu",
+    device=device,
     lr=args.model_lr,
     dropout=args.dropout,
     weight_decay=args.weight_decay,
     name=f"surrogate"
-)
+).to(device)
 
 ################################################
 # Generate Perturbations
@@ -118,7 +115,7 @@ perturbations = torch.zeros_like(graph.adj).float()
 count = torch.zeros_like(graph.adj).float()
 num_perturbations = args.ptb_rate * graph.adj.sum()
 
-t = tqdm(range(10), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
+t = tqdm(range(args.ptb_epochs), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
 t.set_description("Perturbing")
 
 for epoch in t:
@@ -127,16 +124,16 @@ for epoch in t:
     adj_grad = torch.zeros_like(graph.adj).float()
 
     # Get modified adj
-    modified_adj = Utils.get_modified_adj(graph.adj, perturbations).float()
+    modified_adj = Utils.get_modified_adj(graph.adj, perturbations).float().to(device)
 
-    for sample_epoch in range(10):
+    for sample_epoch in range(args.num_samples):
         # Get sample indices
         # sampled = torch.bernoulli(sampling_matrix)
         idx = samplingMatrix.get_sample()
         # print(idx)
 
         # Map sample to adj
-        sample = modified_adj[idx[0], idx[1]].clone().detach().requires_grad_(True)
+        sample = modified_adj[idx[0], idx[1]].clone().detach().requires_grad_(True).to(device)
         modified_adj[idx[0], idx[1]] = sample
 
         # Get grad
@@ -151,9 +148,9 @@ for epoch in t:
         count[idx[0], idx[1]] += 1
 
     # Update the sampling matrix
-    if epoch % 2 == 0:
-        samplingMatrix.updateByGrad(adj_grad, count)
-        samplingMatrix.getRatio()
+    # if epoch % 2 == 0:
+    samplingMatrix.updateByGrad(adj_grad, count)
+    samplingMatrix.getRatio()
 
     # Average the gradient
     adj_grad = torch.div(adj_grad, count)
@@ -214,13 +211,12 @@ baseline_model = GCN(
     dropout=args.dropout,
     weight_decay=args.weight_decay,
     name=f"baseline"
-)
+).to(device)
 
-baseline_model.fit(graph, 40)
+baseline_model.fit(graph, args.reg_epochs)
 
 pred = baseline_model(graph.features, graph.adj)
 baseline_acc = Metrics.partial_acc(pred, graph.labels, g0, gX)
-
 
 locked_adj = Utils.get_modified_adj(graph.adj, best)
 
@@ -235,7 +231,7 @@ locked_model = GCN(
     name=f"locked"
 )
 
-locked_model.fitManual(graph.features, locked_adj, graph.labels, graph.idx_train, graph.idx_test, 40)
+locked_model.fitManual(graph.features, locked_adj, graph.labels, graph.idx_train, graph.idx_test, args.reg_epochs)
 
 pred = locked_model(graph.features, locked_adj)
 locked_acc = Metrics.partial_acc(pred, graph.labels, g0, gX)
@@ -251,3 +247,50 @@ print("==== Accuracies ====")
 print(f"         ΔG0\tΔGX")
 print(f"task1 | {dg0:.1%}\t{dgX:.1%}")
 
+diff = locked_adj - graph.adj
+diffSummary = Metrics.show_metrics(diff, graph.labels, g0, device)
+
+print(diffSummary)
+
+################################################
+# Save
+################################################
+
+if (args.save == "Y"):
+    import Utils.Export as Export
+    from datetime import date
+
+    def getDiff(location, changeType):
+        num = diffSummary[location][changeType]["total"]
+        if num == 0: return f"{num:.0f}"
+        pct = diffSummary[location][changeType]["same"] / num
+        return f"{num:.0f} ({pct:.2%} similar)"
+
+    results = {
+        "date": date.today().strftime("%m/%d/%y"),
+        "seed": args.seed,
+        "dataset": args.dataset,
+        "protect_size": args.protect_size,
+        "reg_epochs": args.reg_epochs,
+        "ptb_epochs": args.ptb_epochs,
+        "ptb_rate": args.ptb_rate,
+        "ptb_sample_num": args.num_samples,
+        "ptb_sample_size": args.sample_size,
+        "ratio_g0": samplingMatrix.g0_ratio.item(),
+        "ratio_gX": samplingMatrix.gX_ratio.item(),
+        "ratio_g0gX": samplingMatrix.g0gX_ratio.item(),
+        "base_g0": baseline_acc["g0"],
+        "base_gX": baseline_acc["gX"],
+        "d_g0": dg0,
+        "d_gX": dgX,
+        "edges": diff.abs().sum().item(),
+        "add_g0": getDiff("g0", "add"),
+        "add_gX": getDiff("gX", "add"),
+        "add_g0gX": getDiff("g0gX", "add"),
+        "remove_g0": getDiff("g0", "remove"),
+        "remove_gX": getDiff("gX", "remove"),
+        "remove_g0gX": getDiff("g0gX", "remove"),
+
+    }
+
+    Export.saveData("./SelectiveAttack.csv", results)
