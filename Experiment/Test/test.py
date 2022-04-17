@@ -2,13 +2,9 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
-import Utils.Export as Export
 
+import torch
 
-res = {
-    "col1": "123",
-    "col3": "abc",
-    "col": 123.23
-}
+vals = torch.tensor([1, 2, 3, 2, 1, 2, 3, 3])
 
-Export.saveData("../../Results/Results.csv", res)
+torch.distributions.distribution.Distribution()
