@@ -6,7 +6,6 @@ def acc(predictions, labels):
     acc = correct / predictions.size(dim=0)
     return acc.item()
 
-
 def calc_acc(model, features, adj, labels, idx=False):
     if not idx:
         idx = torch.ones_like(labels) > 0
@@ -46,7 +45,7 @@ def mask_adj(adj, bool_list, device):
 
     return diff
 
-def show_metrics(changes, labels, g0, device):
+def show_metrics(changes, labels, g0, device, verbose=True):
     """
     Prints the changes in edges with respect to g0 and labels of a diff
     
@@ -74,13 +73,13 @@ def show_metrics(changes, labels, g0, device):
         
         diff = edges.shape[1] - same
 
-        print(f"     {type}   {int(same)}  \t{int(diff)}  \t{int(same+diff)}")
+        if verbose: print(f"     {type}   {int(same)}  \t{int(diff)}  \t{int(same+diff)}")
         return { "same": int(same), "diff": int(diff), "total": int(same + diff)}
 
     def print_add_remove(adj):
         add = adj.clamp(0,1)
         remove = adj.clamp(-1,0).abs()
-        print("                A-A\tA-B\tTOTAL")
+        if verbose: print("                A-A\tA-B\tTOTAL")
         numAdd = print_same_diff("     (+)", add)
         numRemove = print_same_diff("     (-)", remove)
 
@@ -89,20 +88,64 @@ def show_metrics(changes, labels, g0, device):
 
     r = {}
 
-    print("     Within G0 ====")
+    if verbose: print("     Within G0 ====")
     g0_adj = mask_adj(changes, g0, device)
     r["g0"] = print_add_remove(g0_adj)
 
-    print("     Within GX ====")
+    if verbose: print("     Within GX ====")
     gX_adj = mask_adj(changes, ~g0, device)
     r["gX"] = print_add_remove(gX_adj)
 
-    print("     Between G0-GX ====")
+    if verbose: print("     Between G0-GX ====")
     g0gX_adj = (changes - g0_adj - gX_adj)
     r["g0gX"] = print_add_remove(g0gX_adj)
 
-    print()
+    if verbose: print()
     print_same_diff("   TOTAL", changes)
 
     return r
 
+def calc_entropy(data: torch.tensor):
+    bins = torch.histc(data, bins=50)
+    bins /= bins.sum()
+    return ((bins * torch.log2(bins)).nan_to_num().sum() * -1).item()
+
+def calc_correlation(tensor1: torch.tensor, tensor2: torch.tensor):
+    cat = torch.cat((tensor1.unsqueeze(0), tensor2.unsqueeze(0)))
+    return torch.corrcoef(cat)[0][1].item()
+
+def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=100):
+    """
+    Return the features with most entropy and/or correlation
+    
+    Parameters
+    ---
+    par_name : par_type
+        par_description
+    
+    Returns
+    ---
+    entropy, correlation, index
+    
+    Examples
+    ---
+    >>>example
+    
+    """
+    
+    ent_cor = torch.zeros(3, features.shape[0])
+
+    for r in range(features.shape[1]):
+        feat = features.t()[r]
+        entropy = calc_entropy(feat)
+        correlation = abs(calc_correlation(feat, labels))
+        ent_cor[0][r] = entropy
+        ent_cor[1][r] = correlation
+        ent_cor[2][r] = entropy + correlation
+
+    ent_cor.nan_to_num_()
+
+    idx = torch.topk(ent_cor[2], num, sorted=True).indices
+    data = ent_cor[:,idx]
+
+    return data[0], data[1], idx

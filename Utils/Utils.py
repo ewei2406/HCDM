@@ -26,7 +26,7 @@ def idx_to_bool(idx, max_len=None):
     """
     
     if not max_len:
-        max_len = max(idx)
+        max_len = max(idx) + 1
     
     arr = torch.zeros(max_len)
     arr[idx] = 1
