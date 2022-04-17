@@ -134,7 +134,7 @@ def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=100):
     
     """
     
-    ent_cor = torch.zeros(3, features.shape[0])
+    ent_cor = torch.zeros(3, features.shape[1])
 
     for r in range(features.shape[1]):
         feat = features.t()[r]
@@ -146,7 +146,8 @@ def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=100):
 
     ent_cor.nan_to_num_()
 
-    idx = torch.topk(ent_cor[2], num, sorted=True).indices
+    idx = torch.topk(ent_cor[2], num - 3, sorted=True).indices
+    idx = torch.cat((idx, torch.topk(ent_cor[2], 3, sorted=True, largest=False).indices))
     data = ent_cor[:,idx]
 
     return data[0], data[1], idx
