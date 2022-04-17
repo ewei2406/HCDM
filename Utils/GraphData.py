@@ -54,6 +54,10 @@ class Graph:
             device=self.device
         )
 
+    def getEntropies(self):
+        # TODO
+        return 0
+
 def getGraph(root, name, setting, seed, device, verbose=True):
     data = Dataset(root, name, setting, seed)
 

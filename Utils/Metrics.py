@@ -105,3 +105,4 @@ def show_metrics(changes, labels, g0, device):
     print_same_diff("   TOTAL", changes)
 
     return r
+
