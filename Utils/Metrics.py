@@ -112,7 +112,7 @@ def calc_entropy(data: torch.tensor):
     return ((bins * torch.log2(bins)).nan_to_num().sum() * -1).item()
 
 def calc_correlation(tensor1: torch.tensor, tensor2: torch.tensor):
-    cat = torch.cat((tensor1.unsqueeze(0), tensor2.unsqueeze(0))).numpy()
+    cat = torch.cat((tensor1.unsqueeze(0).cpu(), tensor2.unsqueeze(0).cpu())).numpy()
     return np.corrcoef(cat)[0][1]
 
 def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=100):

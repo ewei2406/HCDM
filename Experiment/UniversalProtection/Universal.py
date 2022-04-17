@@ -62,6 +62,7 @@ print(f'  torch seed: {args.seed}')
 
 from Utils import GraphData
 from Utils import Metrics
+import numpy as np
 
 print(f'==== Dataset: {args.dataset} ====')
 
@@ -73,6 +74,7 @@ graph.summarize()
 from Utils import Utils
 
 tasks = {}
+np.seterr(invalid='ignore')
 
 # Add labels as a task
 entropy, correlation, idx = Metrics.get_ent_cor(graph.labels.unsqueeze(1).float(), graph.labels, 1)

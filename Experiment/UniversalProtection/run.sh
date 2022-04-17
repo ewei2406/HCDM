@@ -1,4 +1,4 @@
-datasets=(cora citeseer Polblogs flickr BlogCatalog)
+datasets=(citeseer flickr BlogCatalog)
 
 
 for dataset in "${datasets[@]}"
