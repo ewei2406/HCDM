@@ -4,7 +4,7 @@ require("purrr")
 require("ggplot2")
 require("ggthemes")
 
-inputFile <- "SelectiveAttack.csv"
+inputFile <- "SampleResults.csv"
 
 rawData <- read.csv(file="../Results/" %>% paste(inputFile, sep=""))
 

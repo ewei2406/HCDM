@@ -4,7 +4,7 @@ require("purrr")
 require("ggplot2")
 require("ggthemes")
 
-inputFile <- "SelectiveAttack.csv"
+inputFile <- "SampleResults.csv"
 
 rawData <- read.csv(file="../Results/" %>% paste(inputFile, sep=""))
 
@@ -40,7 +40,7 @@ fixParentheses <- function(d) {
   return(fixAdd)
 }
 
-cleanedData <- rawData %>% fixParentheses()
+cleanedData <- rawData %>% fixParentheses() %>% select(-date)
 
 byDataset <- cleanedData %>% 
   group_by(dataset, ptb_rate) %>% 
