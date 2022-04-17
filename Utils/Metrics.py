@@ -1,5 +1,6 @@
 import torch
 from . import Utils
+import numpy as np
 
 def acc(predictions, labels):
     correct = (predictions.argmax(1) == labels).sum()
@@ -111,8 +112,8 @@ def calc_entropy(data: torch.tensor):
     return ((bins * torch.log2(bins)).nan_to_num().sum() * -1).item()
 
 def calc_correlation(tensor1: torch.tensor, tensor2: torch.tensor):
-    cat = torch.cat((tensor1.unsqueeze(0), tensor2.unsqueeze(0)))
-    return torch.corrcoef(cat)[0][1].item()
+    cat = torch.cat((tensor1.unsqueeze(0), tensor2.unsqueeze(0))).numpy()
+    return np.corrcoef(cat)[0][1]
 
 def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=100):
     """
