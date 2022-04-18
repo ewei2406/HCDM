@@ -86,7 +86,7 @@ tasks[-1] = {
     }
 
 # Find highest entropy
-entropy, correlation, idx = Metrics.get_ent_cor(graph.features, graph.labels, args.num_subtasks, args.top != 'Y')
+entropy, correlation, idx = Metrics.get_ent_cor(graph.features, graph.labels, args.num_subtasks, False, offset=20)
 
 for f_idx in range(idx.shape[0]):
     tasks[idx[f_idx].item()] = {

@@ -116,7 +116,7 @@ def calc_correlation(tensor1: torch.tensor, tensor2: torch.tensor):
     cat = torch.cat((tensor1.unsqueeze(0).cpu(), tensor2.unsqueeze(0).cpu())).numpy()
     return np.corrcoef(cat)[0][1]
 
-def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=10, rand=False):
+def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=10, rand=False, offset=0):
     """
     Return the features with most entropy and/or correlation
     
@@ -150,7 +150,7 @@ def get_ent_cor(features: torch.tensor, labels: torch.tensor, num: int=10, rand=
     if rand:
         idx = torch.tensor(random.sample(range(features.shape[1]), num))
     else:
-        idx = torch.topk(ent_cor[2], num, sorted=True).indices
+        idx = torch.topk(ent_cor[2], num + offset, sorted=True).indices[offset:]
     
     data = ent_cor[:,idx]
 
