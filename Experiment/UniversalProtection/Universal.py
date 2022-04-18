@@ -24,6 +24,7 @@ parser.add_argument('--ptb_rate', type=float, default=0.25, help='Perturbation r
 parser.add_argument('--sample_size', type=int, default=500, help='')
 parser.add_argument('--num_samples', type=int, default=20, help='')
 parser.add_argument('--num_subtasks', type=int, default=10, help='')
+parser.add_argument('--top', type=str, default='Y', help='sample top (Y) or random')
 
 parser.add_argument('--reg_epochs', type=int, default=100, help='Epochs to train models')
 parser.add_argument('--ptb_epochs', type=int, default=30, help='Epochs to perturb adj matrix')
@@ -85,7 +86,7 @@ tasks[-1] = {
     }
 
 # Find highest entropy
-entropy, correlation, idx = Metrics.get_ent_cor(graph.features, graph.labels, args.num_subtasks)
+entropy, correlation, idx = Metrics.get_ent_cor(graph.features, graph.labels, args.num_subtasks, args.top != 'Y')
 
 for f_idx in range(idx.shape[0]):
     tasks[idx[f_idx].item()] = {
