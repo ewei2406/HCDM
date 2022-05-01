@@ -57,7 +57,7 @@ class GCN(torch.nn.Module):
             t.set_postfix({"loss": round(loss.item(), 2)})
         
         return predictions
-    
+
     def fit(self, graph, epochs, verbose=True):
 
         if epochs == 0:
@@ -86,7 +86,6 @@ class GCN(torch.nn.Module):
         
         return predictions
 
-    
     def train1epoch(self, features, adj, labels, idx_train, idx_test):
 
         features = features

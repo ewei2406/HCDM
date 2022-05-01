@@ -18,13 +18,13 @@ class Graph:
 
     def summarize(self, name=""):
         print()
-        print(f'==== Dataset Summary: {name} ====')
-        print(f'adj shape: {list(self.adj.shape)}')
-        print(f'feature shape: {list(self.features.shape)}')
-        print(f'num labels: {self.labels.max().item()+1}')
-        print(f'split seed: {self.split_seed}')
+        print(f'[i] Dataset Summary: {name}')
+        print(f'\tadj shape: {list(self.adj.shape)}')
+        print(f'\tfeature shape: {list(self.features.shape)}')
+        print(f'\tnum labels: {self.labels.max().item()+1}')
+        print(f'\tsplit seed: {self.split_seed}')
         print(
-            f'train|val|test: {self.idx_train.sum()}|{self.idx_val.sum()}|{self.idx_test.sum()}')
+            f'\ttrain|val|test: {self.idx_train.sum()}|{self.idx_val.sum()}|{self.idx_test.sum()}')
     
     def split(self, nsplits):
         indices = torch.zeros(10, dtype=torch.bool)

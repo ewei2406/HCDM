@@ -5,8 +5,10 @@ from os.path import exists
 def makeFile(filename):
     f = open(filename, 'x')
 
+
 def checkIfFileExists(filename):
     return exists(filename)
+
 
 def getCsvHeader(filename):
     colNames = []
@@ -16,16 +18,23 @@ def getCsvHeader(filename):
             break
     return colNames.replace("\n", "").split(",")
 
+
 def appendCsv(filename, string):
     with open(filename, 'a') as csv_file:
         csv_file.write("\n" + ",".join(string))
+
 
 def setCsvHeader(filename, header):
     with open(filename, 'w') as csv_file:
         csv_file.write(",".join(header))
 
 
-def saveData(filename, data):
+def saveData(filename: str, data: dict) -> None:
+    """
+    Apprends a dictionary of [column: value] to csv specified by filename
+    if not csv exists, create the csv with column names
+    Will fail if csv exists but has mismatching column names
+    """
     if not checkIfFileExists(filename):
         makeFile(filename)
         setCsvHeader(filename, [k for k in data])
