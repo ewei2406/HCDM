@@ -45,20 +45,22 @@ cleanedData <- rawData %>% fixParentheses() %>% select(-date)
 byDataset <- cleanedData %>% 
   group_by(dataset, ptb_rate) %>% 
   summarize(sd=sd(d_g0), d_g0=mean(d_g0), d_gX=mean(d_gX)) %>%
-  pivot_longer(c(d_g0, d_gX), names_to="location", values_to="delta")
+  rename("Protected set (G0)"=d_g0, "Authorized set (GX)"=d_gX) %>%
+  pivot_longer(c("Protected set (G0)", "Authorized set (GX)"), names_to="location", values_to="delta")
 
-gg <- ggplot(byDataset, aes(x=ptb_rate, y=delta, group=interaction(dataset, location), shape=location, color=dataset)) +
+gg <- ggplot(byDataset, aes(x=ptb_rate, y=delta, group=interaction(dataset, location), color=dataset)) +
   facet_grid(. ~ location) +
   geom_ribbon(aes(ymin=delta-sd/2, ymax=delta+sd/2), alpha=0.1, color=NA, fill="grey") +
   guides(fill="none") +
   geom_line() +
-  labs(title='∆ acc(G) by ptb_rate: ' %>% paste(inputFile, sep="")) + 
+  #labs(title='∆ acc(G) by ptb_rate: ' %>% paste(inputFile, sep="")) + 
+  ggtitle("Change in downstream accuracy by location and budget") +
   geom_point(size=2, fill="white") +
-  xlab("ptb_rate") +
-  ylab("∆") +
-  theme_minimal() +
+  xlab("Perturbation budget") +
+  ylab("Change in downstream accuracy") +
+  theme_linedraw() +
   scale_shape_manual(values = c(21, 16)) +
   theme(plot.margin = margin(1,1,1.5,1.2, "cm"))
   
 show(gg)
-ggsave("./images/" %>% paste("DeltaG", inputFile, ".png", sep=""), units="in", dpi=300, width=7, height=5)
+ggsave("./images/Poster" %>% paste("DeltaG", inputFile, ".png", sep=""), units="in", dpi=300, width=7, height=4)
