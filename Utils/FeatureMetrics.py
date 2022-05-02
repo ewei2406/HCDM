@@ -15,17 +15,20 @@ def discretize(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.ten
     Discretizes a tensor by the number of bins
     """
     if ((not tensor_a.is_floating_point()) and (not tensor_a.is_complex())) and not force_bins:
-        return tensor_a - tensor_a.min()
+        return (tensor_a - tensor_a.min()).int()
     
     tensor_a_max = tensor_a.max().item()
     tensor_a_min = tensor_a.min().item()
     d = tensor_a_max - tensor_a_min
 
+    if d == 0:
+        return torch.zeros_like(tensor_a).int()
+
     boundaries = torch.arange(start=tensor_a_min, end=tensor_a_max, step = d / n_bins)
     bucketized = torch.bucketize(tensor_a, boundaries, right=True)
     result = bucketized - bucketized.min()
     assert result.shape[0] == tensor_a.shape[0]
-    return result
+    return result.int()
 
 
 def dist(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.tensor:
@@ -53,8 +56,8 @@ def p_dist(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.tensor:
     Returns the distribution of values in a tensor as a vector of probabilities
     If the tensor is not discrete, bin using n_bins
     """
-    dist = dist(tensor_a, n_bins=n_bins, force_bins=force_bins)
-    return dist / dist.sum()
+    distribution = dist(tensor_a, n_bins=n_bins, force_bins=force_bins)
+    return distribution / distribution.sum()
 
 
 def joint_pdf(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=50, force_bins=False) -> torch.tensor:
@@ -66,7 +69,17 @@ def joint_pdf(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=50, force_b
 
     a_binned = discretize(tensor_a, n_bins=n_bins, force_bins=force_bins)
     b_binned = discretize(tensor_b, n_bins=n_bins, force_bins=force_bins)
-    cumulative = torch.zeros([a_binned.max() + 1, b_binned.max() + 1])
+
+    if a_binned.max().item() == 0:
+        if b_binned.max().item() == 0:
+            return torch.tensor([[0]])
+        return p_dist(b_binned).unsqueeze(0)
+    if b_binned.max().item() == 0:
+        if a_binned.max().item() == 0:
+            return torch.tensor([[0]])
+        return p_dist(a_binned).unsqueeze(1)
+
+    cumulative = torch.zeros((a_binned.max().item() + 1, b_binned.max().item() + 1))
     for i in range(a_binned.shape[0]):
         cumulative[a_binned[i]][b_binned[i]] += 1
 
@@ -135,11 +148,6 @@ def mutual_information(tensor_a: torch.tensor, tensor_b: torch.tensor) -> float:
     sum_Y = torch.sum(j_pdf, 0)
     log_pY = torch.log2(sum_Y)
 
-    print(j_pdf)
-    print(sum_X)
-    print(sum_Y)
-    print("")
-
     for idx_X in range(j_pdf.shape[0]):
         for idx_Y in range(j_pdf.shape[1]):
             p_xy = j_pdf[idx_X][idx_Y]
@@ -155,21 +163,45 @@ def chi_squared(tensor_a: torch.tensor, tensor_b: torch.tensor) -> float:
     assert tensor_a.shape[0] == tensor_b.shape[0]
 
     j_pdf = joint_pdf(tensor_a, tensor_b)
-    print(j_pdf)
+    # print(j_pdf)
     cumulative = 0
     sum_X = torch.sum(j_pdf, 0)
     sum_Y = torch.sum(j_pdf, 1)
     
     for i in range(j_pdf.shape[0]):
         E_X = sum_X * sum_Y[i]
-        print((((j_pdf[i] - E_X) ** 2) / E_X))
-        cumulative += (((j_pdf[i] - E_X) ** 2) / E_X).sum().item()
+        # print((((j_pdf[i] - E_X) ** 2) / E_X))
+        cumulative += (((j_pdf[i] - E_X) ** 2) / E_X).nan_to_num().sum().item()
     
     return cumulative
 
 
+def sample_by_quantiles(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=4, n_samples=50) -> torch.tensor:
+    """
+    Returns a boolean index tensor of n samples distributed amongst tensor a and b in n_bins
+    """
+    assert tensor_a.shape[0] == tensor_b.shape[0]
+
+    dist = torch.zeros([2, tensor_a.shape[0]])
+    dist[0] = torch.bucketize(tensor_a, torch.arange(tensor_a.min(), tensor_a.max() - 0.000001, (tensor_a.max() - tensor_a.min()) / (n_bins - 1)))
+    dist[1] = torch.bucketize(tensor_b, torch.arange(tensor_b.min(), tensor_b.max() - 0.000001, (tensor_b.max() - tensor_b.min()) / (n_bins - 1)))
+
+    prob = torch.zeros([dist.shape[1]])
+    for i in range(n_bins):
+        for j in range(n_bins):
+            selected = (dist[0] == i) * (dist[0] == j)
+            if selected.sum() == 0:
+                prob[selected] = 0
+            else:
+                prob[selected] = 1 / selected.sum()
+
+    prob *= n_samples / prob.sum()
+    idx = torch.bernoulli(prob.clamp(0, 1)) == 1
+    return idx
+
+
 if __name__ == "__main__":
-    a = torch.tensor([1, 1, 2, 1, 2, 1, 2])
+    a = torch.tensor([1, 1, 2, 1, 2, 1, 2.])
     b = torch.tensor([1, 2, 1, 2, 2, 2, 2])
 
     z = chi_squared(a, b)

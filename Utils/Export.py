@@ -1,9 +1,14 @@
 import csv
 from datetime import date
 from os.path import exists
+import json
 
-def makeFile(filename):
+def makeFile(filename, template='none'):
     f = open(filename, 'x')
+    if template == 'json':
+        with open(filename, 'a') as f:
+            f.write("{}")
+
 
 
 def checkIfFileExists(filename):
@@ -58,3 +63,25 @@ def saveData(filename: str, data: dict) -> None:
         return False
 
     appendCsv(filename, [str(data[k]) for k in csvHeader])
+
+
+def load_temp(value: str, filename="./temp.json"):
+    """
+    Attempts to load temp.json
+    """
+    if exists(filename):
+        with open(filename, 'r') as f:
+            print(f)
+            data = json.load(f)
+            print(data)
+    else:
+        return None
+
+if __name__ == "__main__":
+    d = load_temp("cora")
+    if d:
+        print("D")
+    else:
+        print("t")
+        makeFile("./temp.json", template='json')
+
