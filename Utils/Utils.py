@@ -6,28 +6,10 @@ import torch
 def idx_to_bool(idx, max_len=None):
     """
     Converts an array of indices into a boolean array (where desired indices are True)
-    
-    Parameters
-    ---
-    idx : array-like
-        array of indices
-    max_len : int (optional)
-        length of output
-    
-    Returns
-    ---
-    out : array
-        array of booleans
-    
-    Examples
-    ---
-    >>>example
-    
     """
     
     if not max_len:
         max_len = max(idx) + 1
-    
     arr = torch.zeros(max_len)
     arr[idx] = 1
     return arr > 0
@@ -36,21 +18,6 @@ def idx_to_bool(idx, max_len=None):
 def bool_to_idx(bool_list):
     """
     Converts a boolean array (where desired indices are True) into an array of indices
-    
-    Parameters
-    ---
-    bool_list : array-like
-        array of booleans
-    
-    Returns
-    ---
-    out : array
-        array of indices
-    
-    Examples
-    ---
-    >>>example
-    
     """
     return bool_list.nonzero()
 

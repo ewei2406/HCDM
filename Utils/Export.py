@@ -65,23 +65,41 @@ def saveData(filename: str, data: dict) -> None:
     appendCsv(filename, [str(data[k]) for k in csvHeader])
 
 
-def load_temp(value: str, filename="./temp.json"):
+def save_var(key: str, value: str, filename="./temp.json"):
     """
-    Attempts to load temp.json
+    Saves a variable into the temp file if it exists, or creates a new one
+    """
+    if (not exists(filename)):
+        print("Creating temp file...")
+        makeFile(filename, template='json')
+    with open(filename, 'r') as read:
+        print(f"Saving data for [{key}]")
+        data = json.load(read)
+        if key in data:
+            print(f"Warning: overwriting existing temp data for [{key}]")
+        data[key] = value
+        with open(filename, 'w') as write:
+            write.write(json.dumps(data))
+
+
+def load_var(key: str, filename="./temp.json"):
+    """
+    Gets a variable out of temp file if it exists, or None otherwise
     """
     if exists(filename):
+        print(f"Loading data for [{key}]")
         with open(filename, 'r') as f:
-            print(f)
             data = json.load(f)
-            print(data)
-    else:
-        return None
+            if key in data:
+                return data[key]
+    print(f"Failed to find data for [{key}]")
+    return None
+
 
 if __name__ == "__main__":
-    d = load_temp("cora")
-    if d:
-        print("D")
+    d = load_var("cora")
+    if d != None:
+        print(d)
     else:
-        print("t")
-        makeFile("./temp.json", template='json')
+        save_var("cora", [1, 2, 3])
 
