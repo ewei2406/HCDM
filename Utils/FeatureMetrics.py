@@ -24,7 +24,7 @@ def discretize(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.ten
     if d == 0:
         return torch.zeros_like(tensor_a).int()
 
-    boundaries = torch.arange(start=tensor_a_min, end=tensor_a_max, step = d / n_bins)
+    boundaries = torch.arange(start=tensor_a_min, end=tensor_a_max, step = d / n_bins, device=tensor_a.device)
     bucketized = torch.bucketize(tensor_a, boundaries, right=True)
     result = bucketized - bucketized.min()
     assert result.shape[0] == tensor_a.shape[0]
@@ -40,7 +40,7 @@ def dist(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.tensor:
         return 0
     if ((not tensor_a.is_floating_point()) and (not tensor_a.is_complex())) and not force_bins:
         offset = tensor_a.min().item()
-        dist = torch.zeros([tensor_a.max().item() - offset + 1])
+        dist = torch.zeros([tensor_a.max().item() - offset + 1], device=tensor_a.device)
         for f in tensor_a:
             dist[f - offset] += 1
     else:
@@ -66,6 +66,7 @@ def joint_pdf(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=50, force_b
     """
 
     assert tensor_a.shape[0] == tensor_b.shape[0]
+    assert tensor_a.device == tensor_b.device
 
     a_binned = discretize(tensor_a, n_bins=n_bins, force_bins=force_bins)
     b_binned = discretize(tensor_b, n_bins=n_bins, force_bins=force_bins)
@@ -79,7 +80,7 @@ def joint_pdf(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=50, force_b
             return torch.tensor([[0]])
         return p_dist(a_binned).unsqueeze(1)
 
-    cumulative = torch.zeros((a_binned.max().item() + 1, b_binned.max().item() + 1))
+    cumulative = torch.zeros((a_binned.max().item() + 1, b_binned.max().item() + 1), device=tensor_a.device)
     for i in range(a_binned.shape[0]):
         cumulative[a_binned[i]][b_binned[i]] += 1
 
@@ -181,12 +182,13 @@ def sample_by_quantiles(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=4
     Returns a boolean index tensor of n samples distributed amongst tensor a and b in n_bins
     """
     assert tensor_a.shape[0] == tensor_b.shape[0]
+    assert tensor_a.device == tensor_b.device
 
-    dist = torch.zeros([2, tensor_a.shape[0]])
+    dist = torch.zeros([2, tensor_a.shape[0]], device=tensor_a.device)
     dist[0] = torch.bucketize(tensor_a, torch.arange(tensor_a.min(), tensor_a.max() - 0.000001, (tensor_a.max() - tensor_a.min()) / (n_bins - 1)))
     dist[1] = torch.bucketize(tensor_b, torch.arange(tensor_b.min(), tensor_b.max() - 0.000001, (tensor_b.max() - tensor_b.min()) / (n_bins - 1)))
 
-    prob = torch.zeros([dist.shape[1]])
+    prob = torch.zeros([dist.shape[1]], device=tensor_a.device)
     for i in range(n_bins):
         for j in range(n_bins):
             selected = (dist[0] == i) * (dist[0] == j)
@@ -197,7 +199,7 @@ def sample_by_quantiles(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=4
 
     prob *= n_samples / prob.sum()
     idx = torch.bernoulli(prob.clamp(0, 1)) == 1
-    return idx
+    return idx.to(tensor_a.device)
 
 
 if __name__ == "__main__":

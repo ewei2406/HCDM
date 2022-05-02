@@ -96,14 +96,18 @@ samplingMatrix = SamplingMatrix.SamplingMatrix(g0, gX, graph.adj, args.sample_si
 from Utils import FeatureMetrics
 from Utils import Utils
 from Utils import Export
+from tqdm import tqdm
 
 metrics = Export.load_var("cora_selected")
 
 if metrics == None:
     transposed = graph.features.t().contiguous()
-    metrics = torch.zeros([3, transposed.shape[0]])
+    metrics = torch.zeros([3, transposed.shape[0]], device=device)
 
-    for i in range(transposed.shape[0]):
+    t = tqdm(range(transposed.shape[0]), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
+    t.set_description("Metrics")
+
+    for i in t:
         metrics[0][i] = i
         metrics[1][i] = FeatureMetrics.shannon_entropy(transposed[i])
         metrics[2][i] = FeatureMetrics.chi_squared(transposed[i], graph.labels)
@@ -147,7 +151,6 @@ surrogate = GCN(
 ).to(device)
 
 import torch.nn.functional as F
-from tqdm import tqdm
 
 perturbations = torch.zeros_like(graph.adj).float()
 count = torch.zeros_like(graph.adj).float()
