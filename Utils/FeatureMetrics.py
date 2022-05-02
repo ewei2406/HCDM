@@ -22,13 +22,13 @@ def discretize(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.ten
     d = tensor_a_max - tensor_a_min
 
     if d == 0:
-        return torch.zeros_like(tensor_a).int()
+        return torch.zeros_like(tensor_a, device=tensor_a.device).int()
 
     boundaries = torch.arange(start=tensor_a_min, end=tensor_a_max, step = d / n_bins, device=tensor_a.device)
-    bucketized = torch.bucketize(tensor_a, boundaries, right=True)
+    bucketized = torch.bucketize(tensor_a, boundaries, right=True).to(tensor_a.device)
     result = bucketized - bucketized.min()
     assert result.shape[0] == tensor_a.shape[0]
-    return result.int()
+    return result.int().to(tensor_a.device)
 
 
 def dist(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.tensor:
@@ -37,7 +37,7 @@ def dist(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.tensor:
     """
     
     if tensor_a.nelement() == 0: 
-        return 0
+        return torch.tensor([0], device=tensor_a.device)
     if ((not tensor_a.is_floating_point()) and (not tensor_a.is_complex())) and not force_bins:
         offset = tensor_a.min().item()
         dist = torch.zeros([tensor_a.max().item() - offset + 1], device=tensor_a.device)
@@ -46,7 +46,7 @@ def dist(tensor_a: torch.tensor, n_bins=50, force_bins=False) -> torch.tensor:
     else:
         if force_bins:
             tensor_a = tensor_a.float()
-        dist = torch.histc(tensor_a, bins=n_bins)
+        dist = torch.histc(tensor_a, bins=n_bins).to(tensor_a.device)
     
     return dist
 
@@ -73,11 +73,11 @@ def joint_pdf(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=50, force_b
 
     if a_binned.max().item() == 0:
         if b_binned.max().item() == 0:
-            return torch.tensor([[0]])
+            return torch.tensor([[0]], device=tensor_a.device)
         return p_dist(b_binned).unsqueeze(0)
     if b_binned.max().item() == 0:
         if a_binned.max().item() == 0:
-            return torch.tensor([[0]])
+            return torch.tensor([[0]], device=tensor_a.device)
         return p_dist(a_binned).unsqueeze(1)
 
     cumulative = torch.zeros((a_binned.max().item() + 1, b_binned.max().item() + 1), device=tensor_a.device)
@@ -101,7 +101,9 @@ def pearson_r(tensor_a: torch.tensor, tensor_b: torch.tensor) -> float:
     Returns the pearson r correlation coefficient of two tensors
     """
     assert tensor_a.shape[0] == tensor_b.shape[0]
-    cat = torch.cat((tensor_a.unsqueeze(0), tensor_b.unsqueeze(0)))
+    assert tensor_a.device == tensor_b.device
+
+    cat = torch.cat((tensor_a.unsqueeze(0), tensor_b.unsqueeze(0)), device=tensor_a.device)
     return torch.corrcoef(cat)[0][1].item()
 
 
@@ -113,6 +115,7 @@ def information_gain(tensor_a: torch.tensor, tensor_b: torch.tensor, discrete=Tr
     """
 
     assert tensor_a.shape[0] == tensor_b.shape[0]
+    assert tensor_a.device == tensor_b.device
 
     parent_entropy = shannon_entropy(tensor_a)
     children_entropy = 0
@@ -142,6 +145,7 @@ def mutual_information(tensor_a: torch.tensor, tensor_b: torch.tensor) -> float:
     """
 
     assert tensor_a.shape[0] == tensor_b.shape[0]
+    assert tensor_a.device == tensor_b.device
 
     j_pdf = joint_pdf(tensor_a, tensor_b)
     cumulative = 0
@@ -162,12 +166,13 @@ def chi_squared(tensor_a: torch.tensor, tensor_b: torch.tensor) -> float:
     Returns the chi-sqaured statistic (WITHOUT CONTINUITY CORRECTION) of two variables
     """
     assert tensor_a.shape[0] == tensor_b.shape[0]
+    assert tensor_a.device == tensor_b.device
 
     j_pdf = joint_pdf(tensor_a, tensor_b)
     # print(j_pdf)
     cumulative = 0
-    sum_X = torch.sum(j_pdf, 0)
-    sum_Y = torch.sum(j_pdf, 1)
+    sum_X = torch.sum(j_pdf, 0).to(tensor_a.device)
+    sum_Y = torch.sum(j_pdf, 1).to(tensor_a.device)
     
     for i in range(j_pdf.shape[0]):
         E_X = sum_X * sum_Y[i]
@@ -185,8 +190,12 @@ def sample_by_quantiles(tensor_a: torch.tensor, tensor_b: torch.tensor, n_bins=4
     assert tensor_a.device == tensor_b.device
 
     dist = torch.zeros([2, tensor_a.shape[0]], device=tensor_a.device)
-    dist[0] = torch.bucketize(tensor_a, torch.arange(tensor_a.min(), tensor_a.max() - 0.000001, (tensor_a.max() - tensor_a.min()) / (n_bins - 1)))
-    dist[1] = torch.bucketize(tensor_b, torch.arange(tensor_b.min(), tensor_b.max() - 0.000001, (tensor_b.max() - tensor_b.min()) / (n_bins - 1)))
+
+    a_range = torch.arange(tensor_a.min(), tensor_a.max() - 0.000001, (tensor_a.max() - tensor_a.min()) / (n_bins - 1), device=tensor_a.device)
+    dist[0] = torch.bucketize(tensor_a, a_range)
+
+    b_range = torch.arange(tensor_b.min(), tensor_b.max() - 0.000001, (tensor_b.max() - tensor_b.min()) / (n_bins - 1), device=tensor_a.device)
+    dist[1] = torch.bucketize(tensor_b, b_range)
 
     prob = torch.zeros([dist.shape[1]], device=tensor_a.device)
     for i in range(n_bins):

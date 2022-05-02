@@ -22,7 +22,7 @@ parser.add_argument('--ptb_rate', type=float, default=0.5, help='Perturbation ra
 parser.add_argument('--ptb_epochs', type=int, default=30, help='Epochs to perturb adj matrix')
 parser.add_argument('--sample_size', type=int, default=500, help='')
 parser.add_argument('--num_samples', type=int, default=20, help='')
-parser.add_argument('--num_subtasks', type=int, default=10, help='')
+parser.add_argument('--num_subtasks', type=int, default=50, help='')
 
 # model args
 parser.add_argument('--reg_epochs', type=int, default=100, help='Epochs to train models')
@@ -98,7 +98,7 @@ from Utils import Utils
 from Utils import Export
 from tqdm import tqdm
 
-metrics = Export.load_var("cora_selected")
+metrics = Export.load_var(args.dataset)
 
 if metrics == None:
     transposed = graph.features.t().contiguous()
@@ -114,7 +114,7 @@ if metrics == None:
 
     select_idx = FeatureMetrics.sample_by_quantiles(metrics[0], metrics[1], n_bins=4, n_samples=args.num_subtasks)
     metrics = metrics[:, select_idx == 1]
-    Export.save_var("cora_selected", metrics.numpy().tolist())
+    Export.save_var(args.dataset, metrics.numpy().tolist())
 else:
     metrics = torch.tensor(metrics)
 
@@ -302,94 +302,6 @@ for task_idx in tasks:
     
     if args.save != 'N':
         Export.saveData(args.save, row)
-
-#endregion
-########################
-
-# %%
-########################
-#region Evaluation
-
-from Utils import Export
-
-print("==== Evaluation ====")
-print(f"Task,\tG0,\tGX,\tD_G0\tD_GX")
-
-locked_adj = Utils.get_modified_adj(graph.adj, best)
-diff = locked_adj - graph.adj
-
-for task_idx in range(selected_feat.shape[0]):
-    temp_labels = tasks[t]["feat"].long()
-    label_max = temp_labels.max().item() + 1
-
-    baseline_model = GCN(
-        input_features=graph.features.shape[1],
-        output_classes=label_max,
-        hidden_layers=args.hidden_layers,
-        device=device,
-        lr=args.model_lr,
-        dropout=args.dropout,
-        weight_decay=args.weight_decay,
-        name=f"baseline"
-    ).to(device)
-
-    baseline_model.fitManual(graph.features, graph.adj, temp_labels, graph.idx_train, graph.idx_test, args.reg_epochs, False)
-
-    pred = baseline_model(graph.features, graph.adj)
-    baseline_acc = Metrics.partial_acc(pred, temp_labels, g0, gX, False)
-
-
-    locked_model = GCN(
-        input_features=graph.features.shape[1],
-        output_classes=label_max,
-        hidden_layers=args.hidden_layers,
-        device=device,
-        lr=args.model_lr,
-        dropout=args.dropout,
-        weight_decay=args.weight_decay,
-        name=f"locked"
-    )
-
-    locked_model.fitManual(graph.features, locked_adj, temp_labels, graph.idx_train, graph.idx_test, args.reg_epochs, False)
-
-    pred = locked_model(graph.features, locked_adj)
-    locked_acc = Metrics.partial_acc(pred, temp_labels, g0, gX, False)
-
-    dg0 = locked_acc["g0"] - baseline_acc["g0"]
-    dgX = locked_acc["gX"] - baseline_acc["gX"]
-
-    print(f"{t},\t{dg0:.1%},\t{dgX:.1%},\t{tasks[t]['ent']:.2f},\t{tasks[t]['corr']:.2f}")
-
-    diffSummary = Metrics.show_metrics(diff, temp_labels, g0, device, False)
-
-    results = {
-        "seed": args.seed,
-        "dataset": args.dataset,
-        "protect_size": args.protect_size,
-        "reg_epochs": args.reg_epochs,
-        "ptb_epochs": args.ptb_epochs,
-        "ptb_rate": args.ptb_rate,
-        "ptb_sample_num": args.num_samples,
-        "ptb_sample_size": args.sample_size,
-        "ratio_g0": samplingMatrix.g0_ratio.item(),
-        "ratio_gX": samplingMatrix.gX_ratio.item(),
-        "ratio_g0gX": samplingMatrix.g0gX_ratio.item(),
-        "feature": t,
-        "corr": tasks[t]["corr"],
-        "entropy": tasks[t]["ent"],
-        "base_g0": baseline_acc["g0"],
-        "base_gX": baseline_acc["gX"],
-        "d_g0": dg0,
-        "d_gX": dgX,
-        "edges": int(diff.abs().sum().item()),
-    }
-
-    for add_remove in ["add", "remove"]:
-        for location in ["g0", "gX", "g0gX"]:
-            for similar in ["same", "diff"]:
-                results["_".join([add_remove, location, similar])] = diffSummary[location][add_remove][similar]
-
-    Export.saveData(args.save_location, results)
 
 #endregion
 ########################
