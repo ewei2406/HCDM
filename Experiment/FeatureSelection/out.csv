@@ -1,0 +1,2 @@
+seed,dataset,protect_size,reg_epochs,ptb_epochs,ptb_rate,ptb_sample_num,ptb_sample_size,task_idx,base_g0,base_gX,lock_g0,lock_gX,rel_g0,rel_gX,edges
+123,cora,0.1,10,3,0.25,2,50,-1,0.6807017543859649,0.7011968633924887,0.6596491228070176,0.6966570367313248,0.030927835051546282,0.0064743967039434525,28
