@@ -156,7 +156,7 @@ def mutual_information(tensor_a: torch.tensor, tensor_b: torch.tensor) -> float:
     for idx_X in range(j_pdf.shape[0]):
         for idx_Y in range(j_pdf.shape[1]):
             p_xy = j_pdf[idx_X][idx_Y]
-            cumulative += (p_xy * torch.log2(p_xy / (sum_X[idx_X] * sum_Y[idx_Y]))).nan_to_num()
+            cumulative += (p_xy * torch.log2(p_xy / (sum_X[idx_X] * sum_Y[idx_Y]))).nan_to_num().item()
 
     return cumulative
 

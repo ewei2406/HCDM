@@ -1,5 +1,7 @@
 import torch
-
+from torch_geometric.nn import DenseGCNConv
+import torch.nn.functional as F
+from tqdm import tqdm
 
 class GCN(torch.nn.Module):
     def __init__(self, input_features, output_classes, hidden_layers,  
@@ -29,7 +31,7 @@ class GCN(torch.nn.Module):
         return F.log_softmax(x, dim=1).squeeze()
 
     
-    def fitManual(self, features, adj, labels, idx_train, idx_test, epochs, verbose=True):
+    def fitManual(self, features, adj, labels, idx_train, epochs, verbose=True):
 
         if epochs == 0:
             return None

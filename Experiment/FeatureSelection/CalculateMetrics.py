@@ -64,10 +64,38 @@ graph.summarize()
 #region Feature Selection
 
 from Utils import FeatureMetrics
+from Utils import FeatureMetricsGCN
 from Utils import Utils
 from Utils import Export
+from Utils import GCN
 from tqdm import tqdm
 
-print(graph)
+feat_t = graph.features.t().contiguous()
+
+for feat in tqdm(range(0, feat_t.shape[0])):
+    feature_data = feat_t[feat].long()
+
+    data = {
+        "dataset": args.dataset,
+        "feature": feat,
+        "entropy": FeatureMetrics.shannon_entropy(feature_data),
+        "information_gain": FeatureMetrics.information_gain(feature_data, graph.labels),
+        "mutual_information": FeatureMetrics.mutual_information(feature_data, graph.labels),
+        "chi_sq": FeatureMetrics.chi_squared(feature_data, graph.labels),
+    }
+    Export.saveData(f"FeatureMetrics.csv", data)
+
+# Save the label
+data = {
+    "dataset": args.dataset,
+    "feature": -1,
+    "entropy": FeatureMetrics.shannon_entropy(graph.labels),
+    "information_gain": FeatureMetrics.information_gain(graph.labels, graph.labels),
+    "mutual_information": FeatureMetrics.mutual_information(graph.labels, graph.labels),
+    "chi_sq": FeatureMetrics.chi_squared(graph.labels, graph.labels),
+}
+# print(data) 
+Export.saveData(f"FeatureMetrics.csv", data)
+
 #endregion
 ########################
