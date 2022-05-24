@@ -32,8 +32,6 @@ parser.add_argument('--save', type=str, default='N', help='save the outputs to c
 parser.add_argument('--save_location', type=str, default="./SelectiveAttack.csv", help='where to save the outputs to csv')
 parser.add_argument('--dataset', type=str, default='cora', help='dataset')
 
-parser.add_argument('--save_perturbations', type=str, default='Y', help='Save the perturbations to temp var')
-
 
 parser.add_argument('--check_universal', type=str, default='N', help='check universal protection')
 
@@ -95,124 +93,12 @@ samplingMatrix.get_sample()
 samplingMatrix.getRatio()
 
 ################################################
-# Surrogate Model
-################################################
-
-from Models.GCN import GCN
-
-surrogate = GCN(
-    input_features=graph.features.shape[1],
-    output_classes=graph.labels.max().item()+1,
-    hidden_layers=args.hidden_layers,
-    device=device,
-    lr=args.model_lr,
-    dropout=args.dropout,
-    weight_decay=args.weight_decay,
-    name=f"surrogate"
-).to(device)
-
-################################################
 # Generate Perturbations
 ################################################
 
 import torch.nn.functional as F
 from tqdm import tqdm
 
-perturbations = torch.zeros_like(graph.adj).float()
-count = torch.zeros_like(graph.adj).float()
-num_perturbations = args.ptb_rate * graph.adj.sum()
-
-t = tqdm(range(args.ptb_epochs), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
-t.set_description("Perturbing")
-
-for epoch in t:
-
-
-    # Re-initialize adj_grad
-    adj_grad = torch.zeros_like(graph.adj).float()
-
-    # Get modified adj
-    modified_adj = Utils.get_modified_adj(graph.adj, perturbations).float().to(device)
-
-    if args.do_sampling == 'Y':
-
-        for sample_epoch in range(args.num_samples):
-            # Get sample indices
-            # sampled = torch.bernoulli(sampling_matrix)
-            idx = samplingMatrix.get_sample()
-            # print(idx)
-
-            # Map sample to adj
-            sample = modified_adj[idx[0], idx[1]].clone().detach().requires_grad_(True).to(device)
-            modified_adj[idx[0], idx[1]] = sample
-
-            # Get grad
-            predictions = surrogate(graph.features, modified_adj)
-            loss = F.cross_entropy(predictions[g0], graph.labels[g0]) \
-                - F.cross_entropy(predictions[gX], graph.labels[gX])
-
-            grad = torch.autograd.grad(loss, sample)[0]
-
-            # Implement averaging
-            adj_grad[idx[0], idx[1]] += grad
-            count[idx[0], idx[1]] += 1
-
-            # Update the sampling matrix
-            samplingMatrix.updateByGrad(adj_grad, count)
-            samplingMatrix.getRatio()
-
-            # Average the gradient
-            adj_grad = torch.div(adj_grad, count)
-            adj_grad[adj_grad != adj_grad] = 0
-    
-    else:
-        # Get grad
-        modified_adj = modified_adj.clone().detach().requires_grad_(True).to(device)
-        predictions = surrogate(graph.features, modified_adj)
-        loss = F.cross_entropy(predictions[g0], graph.labels[g0]) \
-            - F.cross_entropy(predictions[gX], graph.labels[gX])
-
-        adj_grad = torch.autograd.grad(loss, modified_adj)[0]
-
-    # Update perturbations
-    lr = (num_perturbations) / (epoch + 1)
-    pre_projection = int(perturbations.sum() / 2)
-    perturbations = perturbations + (lr * adj_grad)
-    perturbations = Utils.projection(perturbations, num_perturbations)
-
-    # Train the model
-    modified_adj = Utils.get_modified_adj(graph.adj, perturbations)
-    surrogate.train1epoch(graph.features, modified_adj, graph.labels, graph.idx_train, graph.idx_test)
-
-    t.set_postfix({"adj_l": loss.item(),
-                    "adj_g": int(adj_grad.sum()),
-                    "pre-p": pre_projection,
-                    "target": int(num_perturbations / 2),
-                    "loss": loss})
-
-################################################
-# Get best sample
-################################################
-
-with torch.no_grad():
-
-    max_loss = -1000
-
-    for k in range(0,3):
-        sample = torch.bernoulli(perturbations)
-        modified_adj = Utils.get_modified_adj(graph.adj, perturbations)
-        modified_adj = Utils.make_symmetric(modified_adj) # Removing this creates "impossible" adj, but works well
-
-        predictions = surrogate(graph.features, modified_adj) 
-
-        loss = F.cross_entropy(predictions[g0], graph.labels[g0]) \
-            - F.cross_entropy(predictions[gX], graph.labels[gX])
-
-        if loss > max_loss:
-            max_loss = loss
-            best = sample
-    
-    print(f"Best sample loss: {loss:.2f}\t Edges: {best.abs().sum() / 2:.0f}")
 
 ################################################
 # Evaluation
@@ -269,17 +155,6 @@ diff = locked_adj - graph.adj
 diffSummary = Metrics.show_metrics(diff, graph.labels, g0, device)
 
 print(diffSummary)
-
-########################
-#region Saving perturbations
-
-from Utils import Export
-
-if args.save_perturbations != 'N':
-    Export.save_var(f'pertubations-{args.dataset}@{args.ptb_rate}', best.numpy().tolist(), "./perturbations.json")
-
-#endregion
-########################
 
 ################################################
 # Check universal protection
@@ -358,6 +233,7 @@ if (args.check_universal == "Y"):
     sp = sp[:-1] + ["Universal"] + sp[-1:]
     sp = ".".join(sp)
     Export.saveData(sp, universalResults)
+
 
 ################################################
 # Save
