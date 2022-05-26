@@ -3,8 +3,7 @@ import numpy as np
 from . import GCN
 from . import FeatureMetrics
 
-def quick_learnability(features: torch.tensor, adj: torch.tensor, feat_idx: int, train_idx: torch.tensor, test_idx: torch.tensor) -> float:
-    labels = features[:, feat_idx]
+def quick_learnability(features: torch.tensor, adj: torch.tensor, labels: torch.tensor, train_idx: torch.tensor, test_idx: torch.tensor) -> float:
     model = GCN(
         input_features=features.shape[1],
         output_classes=labels.max().item()+1,
