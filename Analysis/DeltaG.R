@@ -44,6 +44,10 @@ cleanedData <- rawData %>% fixParentheses() %>% select(-date)
 
 byDataset <- cleanedData %>% 
   group_by(dataset, ptb_rate) %>% 
+  mutate(
+    d_g0 = d_g0 / base_g0,
+    d_gX = d_gX / base_gX
+  ) %>%
   summarize(sd=sd(d_g0), d_g0=mean(d_g0), d_gX=mean(d_gX)) %>%
   rename("Protected set (G0)"=d_g0, "Authorized set (GX)"=d_gX) %>%
   pivot_longer(c("Protected set (G0)", "Authorized set (GX)"), names_to="location", values_to="delta")
@@ -54,13 +58,12 @@ gg <- ggplot(byDataset, aes(x=ptb_rate, y=delta, group=interaction(dataset, loca
   guides(fill="none") +
   geom_line() +
   #labs(title='∆ acc(G) by ptb_rate: ' %>% paste(inputFile, sep="")) + 
-  ggtitle("Change in downstream accuracy by location and budget") +
   geom_point(size=2, fill="white") +
   xlab("Perturbation budget") +
   ylab("Change in downstream accuracy") +
   theme_linedraw() +
-  scale_shape_manual(values = c(21, 16)) +
-  theme(plot.margin = margin(1,1,1.5,1.2, "cm"))
-  
+  theme(legend.position='top') +
+  scale_shape_manual(values = c(21, 16))
+
 show(gg)
-ggsave("./images/Poster" %>% paste("DeltaG", inputFile, ".png", sep=""), units="in", dpi=300, width=7, height=4)
+ggsave("./images/" %>% paste("", inputFile, ".png", sep=""), units="in", dpi=300, width=6, height=3)

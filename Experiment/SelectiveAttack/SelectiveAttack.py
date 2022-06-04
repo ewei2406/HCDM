@@ -268,7 +268,7 @@ print(f"task1 | {dg0:.1%}\t{dgX:.1%}")
 diff = locked_adj - graph.adj
 diffSummary = Metrics.show_metrics(diff, graph.labels, g0, device)
 
-# print(diffSummary)
+print(diffSummary)
 
 ########################
 #region Saving perturbations

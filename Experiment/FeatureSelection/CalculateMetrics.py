@@ -65,10 +65,8 @@ graph.summarize()
 #region Feature Selection
 
 from Utils import FeatureMetrics
-from Utils import FeatureMetricsGCN
 from Utils import Utils
 from Utils import Export
-from Utils import GCN
 from tqdm import tqdm
 
 feat_t = graph.features.t().contiguous()

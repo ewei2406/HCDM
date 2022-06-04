@@ -10,7 +10,6 @@ def makeFile(filename, template='none'):
             f.write("{}")
 
 
-
 def checkIfFileExists(filename):
     return exists(filename)
 
