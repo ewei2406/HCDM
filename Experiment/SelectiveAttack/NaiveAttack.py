@@ -97,8 +97,9 @@ samplingMatrix.getRatio()
 ################################################
 
 import torch.nn.functional as F
-from tqdm import tqdm
 
+noise = torch.zeros_like(graph.adj)
+noise.index_fill_()
 
 ################################################
 # Evaluation

@@ -76,3 +76,6 @@ def getGraph(root, name, setting, seed, device, verbose=True):
     idx_test = Utils.idx_to_bool(data.idx_test, features.shape[0])
     
     return Graph(adj, labels, features, idx_train, idx_val, idx_test, seed, device)
+
+def MakeCora(device='cpu', root="../../Datasets", seed=123):
+  return getGraph(root, 'cora', 'gcn', seed, device)
