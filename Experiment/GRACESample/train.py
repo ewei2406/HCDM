@@ -48,8 +48,8 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default='config.yaml')
     args = parser.parse_args()
 
-    # assert args.gpu_id in range(0, 8)
-    # torch.cuda.set_device(args.gpu_id)
+    assert args.gpu_id in range(0, 8)
+    torch.cuda.set_device(args.gpu_id)
 
     config = yaml.load(open(args.config), Loader=SafeLoader)[args.dataset]
 
