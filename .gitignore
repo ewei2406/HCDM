@@ -1,5 +1,7 @@
-Datasets
+Archive/Datasets
 *.json
+*.bin
+*.feature
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,5 @@
+cora:
+  lr: 0.01
+  dropout: 0.5
+  weight_decay: 0.0005
+  hid_size: 32

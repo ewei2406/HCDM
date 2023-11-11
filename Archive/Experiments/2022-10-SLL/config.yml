@@ -1,0 +1,54 @@
+cora:
+  lr: 0.1
+  dropout: 0.5
+  weight_decay: 0.0005
+  hid_size: 32
+  sll_lr: 20000
+  sll_no_g_lr: 1000
+  sll_sample_size: 2000
+  sll_num_samples: 3
+chameleon:
+  lr: 0.1
+  dropout: 0.5
+  weight_decay: 0.0005
+  hid_size: 32
+  sll_lr: 20000
+  sll_no_g_lr: 1000
+  sll_sample_size: 2000
+  sll_num_samples: 3
+citeseer:
+  lr: 0.01
+  dropout: 0.5
+  weight_decay: 0.0005
+  hid_size: 32
+  sll_lr: 75000
+  sll_no_g_lr: 750
+  sll_sample_size: 2500
+  sll_num_samples: 3
+flickr:
+  lr: 0.01
+  dropout: 0.5
+  weight_decay: 0.0005
+  hid_size: 128
+  sll_lr: 500000
+  sll_no_g_lr: 1000
+  sll_sample_size: 30000
+  sll_num_samples: 2
+BlogCatalog:
+  lr: 0.01
+  dropout: 0.5
+  weight_decay: 0.0005
+  hid_size: 32
+  sll_lr: 350000
+  sll_no_g_lr: 500
+  sll_sample_size: 20000
+  sll_num_samples: 3
+Polblogs:
+  lr: 0.01
+  dropout: 0.5
+  weight_decay: 0.0005
+  hid_size: 32
+  sll_lr: 25000
+  sll_no_g_lr: 250
+  sll_sample_size: 2000
+  sll_num_samples: 3
